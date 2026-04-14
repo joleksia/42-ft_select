@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   ft_select.c                                        :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: joleksia <marvin@42.fr>                    +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/04/14 15:48:23 by joleksia          #+#    #+#             */
+/*   Updated: 2026/04/14 15:55:22 by joleksia         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include <errno.h>
 #include <stdlib.h>     /* getenv, malloc, free, exit */
 #include <unistd.h>     /* isatty, ttyname, ttyslot, open, close, write, read */
@@ -6,6 +18,15 @@
 #include <sys/ioctl.h>  /* ioctl */
 #
 #include "./libft/libft.h"
+
+typedef struct s_select t_select;
+struct s_select {
+    size_t s_min;
+    size_t s_max;
+    size_t s_cur;
+
+    int *s_sel;
+};
 
 extern int ft_select_clear(void);
 
@@ -23,7 +44,7 @@ int main(int ac, char **av, char **envp) {
     if (ac < 2) {
         ft_putstr_fd(pname, 2);
         ft_putendl_fd(" [ ARGUMENTS ] ...", 2);
-        return (1);   
+        return (1);
     }
 
     /* move to the argument list... */
@@ -57,12 +78,6 @@ int main(int ac, char **av, char **envp) {
         ft_putendl_fd("  This project is meant to make you code a small program using termcaps", 1);
         ft_putendl_fd("  which will allow you to pick from a list of choices and return it to your shell.\n", 1);
 
-        ft_putendl_fd("ft_select is a program that takes a vector of strings and return a selected key to the standard output.", 1);
-        ft_putendl_fd("Key is selected using arrow keys to move the cursor in four directions and by pressing the return key.", 1);
-        ft_putendl_fd("ft_select can accept an arbitrary type of key: regular string, file names etc. Use the program responsibly.", 1);
-        ft_putendl_fd("If no key is given, the program will exit. If every key is removed from the list, the program will exit as well.", 1);
-        ft_putendl_fd("If any error occurs during the program execution, intended behaviour is printing the error message and exiting the program with an exit code.\n", 1);
-
         /* print options... */
         ft_putendl_fd("Available options:\n", 1);
         ft_putendl_fd("  -h, --help\t\tPrint this help message and gently exit.", 1);
@@ -73,6 +88,18 @@ int main(int ac, char **av, char **envp) {
 
         /* gently return... */
         return (0);
+    }
+
+    /* create select instance... */
+    t_select select = {
+        .s_min = 0,
+        .s_max = ac,
+        .s_cur = 0,
+        .s_sel = malloc(ac * sizeof(int))
+    };
+
+    if (!select.s_sel) {
+        return (errno); 
     }
 
     /* create termios and enable raw mode... */
