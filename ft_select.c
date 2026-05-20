@@ -6,7 +6,7 @@
 /*   By: joleksia <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/14 15:48:23 by joleksia          #+#    #+#             */
-/*   Updated: 2026/05/20 14:00:03 by joleksia         ###   ########.fr       */
+/*   Updated: 2026/05/20 14:08:19 by joleksia         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,7 +28,9 @@
 #define TEXT_UNDERLINE_INVERSE  "\033[4;7m" /* select, cursor       */
 #
 # /* inputs */
-#define FT_KEY_ENTER        13
+#define FT_KEY_ENTER        '\r'
+#define FT_KEY_DELETE       127
+#define FT_KEY_BACKSPACE    '\0'
 #define FT_KEY_ARROWUP      1000
 #define FT_KEY_ARROWDOWN    1001
 #define FT_KEY_ARROWRIGHT   1002
@@ -118,6 +120,7 @@ int main(int ac, char **av, char **envp) {
 
         /* handle update-render... */
         else {
+            // printf("%d\n", c);
             ft_select_update(&slct, c);
             ft_select_render(&slct);
         }
@@ -282,6 +285,13 @@ extern int ft_select_update(t_select *slct, int input) {
     if (input == FT_KEY_ENTER) {
         slct->s_dat[slct_cridx] = !slct->s_dat[slct_cridx];
     }
+
+    /* handle deletion... */
+    if (input == FT_KEY_DELETE ||
+        input == FT_KEY_BACKSPACE
+    ) {
+        /* ... */
+    }
     
     return (0);
 }
@@ -370,6 +380,10 @@ extern int ft_select_input(void) {
                 case ('C'): { return (FT_KEY_ARROWRIGHT); }
                 case ('D'): { return (FT_KEY_ARROWLEFT); }
             }
+        }
+
+        else {
+
         }
 
         return ('\x1b');
