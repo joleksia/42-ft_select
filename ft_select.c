@@ -29,6 +29,7 @@
 #
 # /* inputs */
 #define FT_KEY_ENTER        '\r'
+#define FT_KEY_SPACE        ' '
 #define FT_KEY_DELETE       127
 #define FT_KEY_BACKSPACE    '\0'
 #define FT_KEY_ARROWUP      1000
@@ -276,21 +277,32 @@ extern int ft_select_update(t_select *slct, int input) {
         }
         slct->s_cryc %= slct->s_crym;
         slct->s_crxc %= slct->s_crxm;
+
+        return (0);
     }
+    else {
+        /* get cursor index... */ 
+        int slct_cridx = ft_select_cursor2index(slct);
 
-    /* get cursor index... */ 
-    int slct_cridx = ft_select_cursor2index(slct);
+        switch (input) {
+            /* select / deselect... */
+            case (FT_KEY_ENTER):
+            case (FT_KEY_SPACE): {
+                slct->s_dat[slct_cridx] = !slct->s_dat[slct_cridx];
+            } break;
+            
+            /* deletion... */
+            case (FT_KEY_DELETE):
+            case (FT_KEY_BACKSPACE): {
+                for (int i = slct_cridx; i < slct->s_ac - 1; i++) {
+                    slct->s_av[i]  = slct->s_av[i + 1];
+                    slct->s_dat[i] = slct->s_dat[i + 1];
+                }
+                slct->s_ac--;
+            } break;
 
-    /* handle select/deselect... */
-    if (input == FT_KEY_ENTER) {
-        slct->s_dat[slct_cridx] = !slct->s_dat[slct_cridx];
-    }
-
-    /* handle deletion... */
-    if (input == FT_KEY_DELETE ||
-        input == FT_KEY_BACKSPACE
-    ) {
-        /* ... */
+            default: { } break;
+        }
     }
     
     return (0);
