@@ -9,6 +9,7 @@ which will allow you to pick from a list of choices and return it to your shell.
 ## Sources:
 
 - [Build Your Own Text Editor](https://viewsourcecode.org/snaptoken/kilo)
+- [ANSI Escape Sequences](https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797)
 
 ## LICENCE
 
