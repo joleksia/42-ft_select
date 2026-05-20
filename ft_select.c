@@ -339,7 +339,10 @@ extern int ft_select_render(t_select *slct) {
         ft_putstr_fd(slct->s_av[i], 1);
         
         /* reset style */
-        ft_putendl_fd(TEXT_NORMAL, 1);
+        ft_putstr_fd(TEXT_NORMAL, 1);
+        
+        /* insert newline */
+        ft_putstr_fd("\n\r", 1);
     }
     
     ft_select_tuicrsrpos(0, 0);
