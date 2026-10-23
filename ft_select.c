@@ -6,7 +6,7 @@
 /*   By: joleksia <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/14 15:48:23 by joleksia          #+#    #+#             */
-/*   Updated: 2026/10/23 13:11:48 by joleksia         ###   ########.fr       */
+/*   Updated: 2026/10/23 13:57:28 by joleksia         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -60,9 +60,11 @@ enum ft_select_input_e {
 
 extern int ft_select_input(void);
 
-/* exec */
+/* execute */
 
-extern int ft_select_exec(const char *, const size_t);
+extern int ft_select_execute(const char *);
+
+extern int ft_select_request(const char *, char **);
 
 /* main */
 
@@ -82,15 +84,15 @@ int main(int ac, char **av) {
     t_rawmode.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
     t_rawmode.c_oflag &= ~(OPOST);
     t_rawmode.c_cflag |=  (CS8);
-    t_rawmode.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+    t_rawmode.c_lflag &= ~(ECHO | ICANON | IEXTEN);
     t_rawmode.c_cc[VMIN]  = 0;
     t_rawmode.c_cc[VTIME] = 1;
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &t_rawmode);
 
-    /* execute commands */
-    ft_select_exec("\x1b[?1049h", 8); /* alt. buffer */
-    ft_select_exec("\x1b[2J",     4); /* clear buffer */
-    ft_select_exec("\x1b[H",      4); /* move cursor to home position */
+    /* executeute commands */
+    ft_select_execute("\x1b[?1049h" /* alt. buffer mode */
+                      "\x1b[2J"     /* clear buffer */
+                      "\x1b[H");    /* move cursor to home position */
 
     /* update loop */
     int exit = 0;
@@ -100,8 +102,8 @@ int main(int ac, char **av) {
         /* ... */
 
         /* render */
-        ft_select_exec("\x1b[2J", 4); /* clear buffer */
-        ft_select_exec("\x1b[H",  4); /* move cursor to home position */
+        ft_select_execute("\x1b[2J"     /* clear buffer */
+                          "\x1b[H");    /* move cursor to home position */
 
         /* input */
         int c = ft_select_input();
@@ -136,52 +138,49 @@ int main(int ac, char **av) {
 /* getopt */
 
 extern int ft_select_getopt(int ac, char **av) {
-    /* get program name... */
-    char *pname = *av;
+    ac--;
+    av++;
 
-    /* check if there's enough argument passed... */
-    if (ac < 2) {
-        ft_putstr_fd(pname, 2);
-        ft_putendl_fd(" [ ARGUMENTS ] ...", 2);
+    /* no arguments */
+    if (ac < 1) {
+        ft_putendl_fd("ft_select [ ARGUMENTS ] ...", 2);
         exit(EXIT_FAILURE);
     }
 
-    /* check if 'version' option... */
+    /* arg: '-v, --version' */
     if (!ft_strncmp(*av, "-v", 3) ||
         !ft_strncmp(*av, "--version", 10)
     ) {
-        ft_putendl_fd("ft_select (42 Warsaw) 1.0.0.", 1);
-        ft_putendl_fd("Project available under the GNU Lesser General Public License v.2.1.", 1);
-        ft_putendl_fd("Source code available under <https://github.com/itsYakub/42-ft_select>.", 1);
+        const char *version = "\
+ft_select (42 Warsaw) 1.0.0.\n\
+Project available under the GNU Lesser General Public License v.2.1.\n\
+Source code available under <https://github.com/itsYakub/42-ft_select>.";
         
-        /* gently return... */
+        /* print and exit */
+        ft_putendl_fd(version, 1);
         exit(EXIT_SUCCESS);
     }
 
-    /* check if 'help' option... */
+    /* arg: '-h, --help' */
     else if (!ft_strncmp(*av, "-h", 3) ||
              !ft_strncmp(*av, "--help", 7)
     ) {
-        /* print usage... */
-        ft_putendl_fd("Usage:\n", 1);
-        ft_putstr_fd("  ", 1);
-        ft_putstr_fd(pname, 1);
-        ft_putendl_fd(" [ LIST OF ARGUMENTS ] ...\n", 1);
+        const char *help = "\
+Usage:\n\
+  ft_select [ LIST OF ARGUMENTS ] ...\n\
+\n\
+From the official subject.pdf:\n\
+  This project is meant to make you code a small program using termcaps\n\
+  which will allow you to pick from a list of choices and return it to your shell.\n\
+\n\
+Available options:\n\
+  -h, --help\t\tPrint this help message and gently exit.\n\
+  -v, --version\t\tPrint the version of the program and gently exit.\n\
+\n\
+Report bugs to <https://github.com/itsYakub/42-ft_select/issues>.";
 
-        /* print description... */
-        ft_putendl_fd("From the official subject.pdf:\n", 1);
-        ft_putendl_fd("  This project is meant to make you code a small program using termcaps", 1);
-        ft_putendl_fd("  which will allow you to pick from a list of choices and return it to your shell.\n", 1);
-
-        /* print options... */
-        ft_putendl_fd("Available options:\n", 1);
-        ft_putendl_fd("  -h, --help\t\tPrint this help message and gently exit.", 1);
-        ft_putendl_fd("  -v, --version\t\tPrint the version of the program and gently exit.\n", 1);
-
-        /* buf reports... */
-        ft_putendl_fd("Report bugs to <https://github.com/itsYakub/42-ft_select/issues>.", 1);
-
-        /* gently return... */
+        /* print and exit */
+        ft_putendl_fd(help, 1);
         exit(EXIT_SUCCESS);
     }
 
@@ -264,17 +263,50 @@ extern int ft_select_input(void) {
     return (input);
 }
 
-/* exec */
+/* execute */
 
-extern int ft_select_exec(const char *cmd, const size_t siz) {
+extern int ft_select_execute(const char *command) {
     /* null-check */
-    if (!cmd) { return (-1); }
-    if (!siz) { return (-1); }
+    if (!command) { return (-1); }
 
-    /* run 'cmd' */
+    /* get the length of 'command' */
+    ssize_t cmdlen = ft_strlen(command);
+    if (!cmdlen) { return (-1); }
+
+    /* run 'command' */
     ssize_t nwrite = 0;
-    if ((nwrite = write(STDOUT_FILENO, cmd, siz)) != (ssize_t) siz) {
+    if ((nwrite = write(STDOUT_FILENO, command, cmdlen)) != cmdlen) {
         return (errno);
+    }
+
+    /* success */
+    return (0);
+}
+
+
+extern int ft_select_request(const char *request, char **response) {
+    /* null-check */
+    if (!request) { return (-1); }
+
+    /* send the 'request' command */
+    ft_select_execute(request);
+
+    /* read the response to the temporary 'buffer' (1024 bytes should be enough for our use-cases?) */
+    char buffer[1024] = { 0 };
+    for (size_t i = 0; i < sizeof(buffer) - 1; i++) {
+        /* read the response from the stream */
+        if (read(STDIN_FILENO, &buffer[i], 1) != 1) { break; }
+
+        /* check for response terminator */
+        if (buffer[i] == 'R') { break; }
+    }
+
+    /* save 'buffer' to 'response' */
+    if (response) {
+        *response = ft_strdup(buffer);
+        if (!*response) {
+            return (errno);
+        }
     }
 
     /* success */
