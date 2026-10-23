@@ -6,137 +6,132 @@
 /*   By: joleksia <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/14 15:48:23 by joleksia          #+#    #+#             */
-/*   Updated: 2026/05/20 14:08:19 by joleksia         ###   ########.fr       */
+/*   Updated: 2026/10/23 13:11:48 by joleksia         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
-#include <stdlib.h>     /* getenv, malloc, free, exit                         */
-#include <unistd.h>     /* isatty, ttyname, ttyslot, open, close, write, read */
-#include <termios.h>    /* tcsetattr, tcgetattr                               */
-#include <signal.h>     /* signal                                             */
-#include <sys/ioctl.h>  /* ioctl                                              */
+#include <stdlib.h>
+#include <stdbool.h>
+#include <unistd.h>
+#include <termios.h>
+#include <signal.h>
+#include <sys/ioctl.h>
 #
 #include "./libft/libft.h"
-#
-# /* text modes */
-#define TEXT_NORMAL             "\033[0m"   /* no select, no cursor */
-#define TEXT_UNDERLINE          "\033[4m"   /* no select, cursor    */
-#define TEXT_INVERSE            "\033[7m"   /* select, no cursor    */
-#define TEXT_UNDERLINE_INVERSE  "\033[4;7m" /* select, cursor       */
-#
-# /* inputs */
-#define FT_KEY_ENTER        '\r'
-#define FT_KEY_SPACE        ' '
-#define FT_KEY_DELETE       127
-#define FT_KEY_BACKSPACE    '\0'
-#define FT_KEY_ARROWUP      1000
-#define FT_KEY_ARROWDOWN    1001
-#define FT_KEY_ARROWRIGHT   1002
-#define FT_KEY_ARROWLEFT    1003
 
 /* getopt */
 
 extern int ft_select_getopt(int, char **);
 
-/* tui */
+/* input */
 
-extern int ft_select_tuiclear(void);
+typedef enum ft_select_input_e ft_select_input_t;
 
-extern int ft_select_tuicrsrpos(size_t, size_t);
+enum ft_select_input_e {
+    
+    FT_SELECT_ARROW_UP    = ('\x1b' << 16) | ('[' << 8) | ('A' << 0),
+    FT_SELECT_ARROW_DOWN  = ('\x1b' << 16) | ('[' << 8) | ('B' << 0),
+    FT_SELECT_ARROW_RIGHT = ('\x1b' << 16) | ('[' << 8) | ('C' << 0),
+    FT_SELECT_ARROW_LEFT  = ('\x1b' << 16) | ('[' << 8) | ('D' << 0),
+    
+    FT_SELECT_F1 = ('\x1b' << 24) | ('[' << 16) | ('O' << 8) | ('P' << 0),
+    FT_SELECT_F2 = ('\x1b' << 24) | ('[' << 16) | ('O' << 8) | ('Q' << 0),
+    FT_SELECT_F3 = ('\x1b' << 24) | ('[' << 16) | ('O' << 8) | ('R' << 0),
+    FT_SELECT_F4 = ('\x1b' << 24) | ('[' << 16) | ('O' << 8) | ('S' << 0),
 
-extern int ft_select_tuimode(int, struct termios *);
+    FT_SELECT_F5 = ('\x1b' << 24) | ('[' << 16) | ('1' << 8) | ('5' << 0),
+    FT_SELECT_F6 = ('\x1b' << 24) | ('[' << 16) | ('1' << 8) | ('7' << 0),
+    FT_SELECT_F7 = ('\x1b' << 24) | ('[' << 16) | ('1' << 8) | ('8' << 0),
+    FT_SELECT_F8 = ('\x1b' << 24) | ('[' << 16) | ('1' << 8) | ('9' << 0),
+    FT_SELECT_F9 = ('\x1b' << 24) | ('[' << 16) | ('2' << 8) | ('0' << 0),
+    
+    FT_SELECT_HOME     = ('\x1b' << 24) | ('[' << 16) | ('1' << 8) | ('~' << 0),
+    FT_SELECT_INSERT   = ('\x1b' << 24) | ('[' << 16) | ('2' << 8) | ('~' << 0),
+    FT_SELECT_DELETE   = ('\x1b' << 24) | ('[' << 16) | ('3' << 8) | ('~' << 0),
+    FT_SELECT_END      = ('\x1b' << 24) | ('[' << 16) | ('4' << 8) | ('~' << 0),
+    FT_SELECT_PAGEUP   = ('\x1b' << 24) | ('[' << 16) | ('5' << 8) | ('~' << 0),
+    FT_SELECT_PAGEDOWN = ('\x1b' << 24) | ('[' << 16) | ('6' << 8) | ('~' << 0),
 
-/* select */
-
-typedef struct s_select t_select;
-
-struct s_select {
-    /* main opts */
-    int    s_ac;    /* s_ac - argument count */
-    char **s_av;    /* s_av - argument vector */
-
-    /* select */
-    int   *s_dat;   /* s_dat - select / unselect data vector */
-    int    s_crxc;  /* s_crxc - cursor X position (current) */
-    int    s_cryc;  /* s_cryc - cursor Y position (current) */
-    size_t s_crxm;  /* s_crxm - cursor X position (max) */
-    size_t s_crym;  /* s_crym - cursor Y position (max) */
 };
 
-extern int ft_select_init(t_select *, int, char **);
-
-extern int ft_select_update(t_select *, int);
-
-extern int ft_select_render(t_select *);
-
-extern int ft_select_deinit(t_select *);
-
-/* utils */
 
 extern int ft_select_input(void);
 
-extern int ft_select_cursor2index(t_select *);
+/* exec */
+
+extern int ft_select_exec(const char *, const size_t);
 
 /* main */
 
-int main(int ac, char **av, char **envp) {
-    (void) envp;
-
-    /* get the name of the program... */
-    char *pname = *av;
-    (void) pname;
-
+int main(int ac, char **av) {
     /* process options... */
     ft_select_getopt(ac, av);
 
-    /* create termios and enable raw mode... */
-    struct termios termios = { 0 };
-    if (ft_select_tuimode(1, &termios) == -1) {
-        return (errno);
-    }
+    /* terminal configuration */
+    struct
+    termios t_default = { 0 };
 
-    /* create select objects... */
-    t_select slct = { 0 };
-    ft_select_init(&slct, --ac, ++av);
+    struct
+    termios t_rawmode = { 0 };
 
-    /* single render before update-render loop... */
-    ft_select_render(&slct);
+    tcgetattr(STDIN_FILENO, &t_default);
+    tcgetattr(STDIN_FILENO, &t_rawmode);
+    t_rawmode.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+    t_rawmode.c_oflag &= ~(OPOST);
+    t_rawmode.c_cflag |=  (CS8);
+    t_rawmode.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+    t_rawmode.c_cc[VMIN]  = 0;
+    t_rawmode.c_cc[VTIME] = 1;
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &t_rawmode);
 
-    /* update-render loop... */
+    /* execute commands */
+    ft_select_exec("\x1b[?1049h", 8); /* alt. buffer */
+    ft_select_exec("\x1b[2J",     4); /* clear buffer */
+    ft_select_exec("\x1b[H",      4); /* move cursor to home position */
+
+    /* update loop */
     int exit = 0;
+    int stat = 0;
     while (!exit) {
+        /* update */
+        /* ... */
+
+        /* render */
+        ft_select_exec("\x1b[2J", 4); /* clear buffer */
+        ft_select_exec("\x1b[H",  4); /* move cursor to home position */
+
+        /* input */
         int c = ft_select_input();
-        /* handle 'read' errors... */
-        if (c == -1) {
-            ft_select_tuimode(0, &termios);
-            ft_select_deinit(&slct);
-            return (errno);
-        }
+        switch (c) {
+            /* case: 'error' */
+            case (-1): {
+                stat = errno;
+            };
 
-        /* handle exit... */
-        else if (c == 'q') { exit = 1; }
+            /* case: 'exit' */
+            case ('\x1b'): {
+                exit = true;
+            } break;
 
-        /* handle update-render... */
-        else {
-            // printf("%d\n", c);
-            ft_select_update(&slct, c);
-            ft_select_render(&slct);
+            /* case: 'input' */
+            default: {
+                /* ... */
+            } break;
         }
     }
 
-    /* disable raw mode... */
-    if (ft_select_tuimode(0, &termios) == -1) {
-        return (errno);
-    }
+    /* leave alternative buffer mode */    
+    write(STDOUT_FILENO, "\x1b[?1049l", 8);
 
-    ft_select_deinit(&slct);
-    
-    return (0);
+    /* terminal configuration */
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &t_default);
+   
+    /* exit */
+    return (stat);
 }
-
 
 /* getopt */
 
@@ -189,227 +184,99 @@ extern int ft_select_getopt(int ac, char **av) {
         /* gently return... */
         exit(EXIT_SUCCESS);
     }
-    return (1);
-}
-
-
-/* tui */
-
-extern int ft_select_tuiclear(void) {
-    /* clear */
-    ft_putstr_fd("\033[2J", 1);
-    return (0);
-}
-
-
-extern int ft_select_tuicrsrpos(size_t x, size_t y) {
-    /* [ 0,0 ] pos */
-    if (!x && !y) {
-        ft_putstr_fd("\033[H", 1);
-    }
 
     return (0);
 }
 
-
-extern int ft_select_tuimode(int enable, struct termios *tptr) {
-    /* null check... */
-    if (!tptr) { return (0); }
-    
-    if (enable) {
-        /* get the original termios... */
-        if (tcgetattr(0, tptr) == 1) { return (-1); }
-        
-        /* copy termios... */
-        struct termios raw = *tptr;
-        raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-        raw.c_oflag &= ~(OPOST);
-        raw.c_cflag |= (CS8);
-        raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-        raw.c_cc[VMIN] = 0;
-        raw.c_cc[VTIME] = 1;
-        if (tcsetattr(0, TCSAFLUSH, &raw) == -1) { return (-1); }
-    }
-    else if (!enable) {
-        /* clear the screen... */
-        ft_select_tuiclear();
-        ft_select_tuicrsrpos(0, 0);
-        
-        /* set back the original termios... */
-        if (tcsetattr(0, TCSAFLUSH, tptr) == -1) { return (-1); }
-    }
-
-    return (0);
-}
-
-
-/* select */
-
-extern int ft_select_init(t_select *slct, int ac, char **av) {
-    if (!slct) { return (-1); }
-
-    *slct = (t_select) { 0 };
-    slct->s_ac  = ac;
-    slct->s_av  = av;
-    slct->s_dat = ft_calloc(ac, sizeof(int));
-    if (!slct->s_dat) {
-        return (-1);
-    }
-
-    slct->s_crxc = slct->s_cryc = 0;
-    /* for now hard-coded */
-    slct->s_crxm = 1;
-    slct->s_crym = ac;
-    return (0);
-}
-
-
-extern int ft_select_update(t_select *slct, int input) {
-    if (!slct) { return (-1); }
-   
-    /* handle cursor... */
-    if (input >= FT_KEY_ARROWUP && input <= FT_KEY_ARROWLEFT) {
-        switch (input) {
-            case (FT_KEY_ARROWUP):    { slct->s_cryc--; } break;
-            case (FT_KEY_ARROWDOWN):  { slct->s_cryc++; } break;
-            case (FT_KEY_ARROWRIGHT): { slct->s_crxc--; } break;
-            case (FT_KEY_ARROWLEFT):  { slct->s_crxc++; } break;
-        }
-        slct->s_cryc %= slct->s_crym;
-        slct->s_crxc %= slct->s_crxm;
-
-        return (0);
-    }
-    else {
-        /* get cursor index... */ 
-        int slct_cridx = ft_select_cursor2index(slct);
-
-        switch (input) {
-            /* select / deselect... */
-            case (FT_KEY_ENTER):
-            case (FT_KEY_SPACE): {
-                slct->s_dat[slct_cridx] = !slct->s_dat[slct_cridx];
-            } break;
-            
-            /* deletion... */
-            case (FT_KEY_DELETE):
-            case (FT_KEY_BACKSPACE): {
-                for (int i = slct_cridx; i < slct->s_ac - 1; i++) {
-                    slct->s_av[i]  = slct->s_av[i + 1];
-                    slct->s_dat[i] = slct->s_dat[i + 1];
-                }
-                slct->s_ac--;
-            } break;
-
-            default: { } break;
-        }
-    }
-    
-    return (0);
-}
-
-
-extern int ft_select_render(t_select *slct) {
-    if (!slct) { return (-1); }
-
-    /* get cursor index... */ 
-    int slct_cridx = ft_select_cursor2index(slct);
-
-    /* clear the screen... */
-    ft_select_tuiclear();
-    ft_select_tuicrsrpos(0, 0);
-
-    /* render all the entries... */
-    for (int i = 0; i < slct->s_ac; i++) {
-        /* get print mode... */
-        char *mode = TEXT_NORMAL;
-        if (slct->s_dat[i]) {
-            mode = (i == slct_cridx) ? TEXT_UNDERLINE_INVERSE : TEXT_INVERSE;
-        }
-        else {
-            if (i == slct_cridx) {
-                mode = TEXT_UNDERLINE;
-            }
-        }
-
-        /* apply style*/
-        ft_putstr_fd(mode, 1);
-
-        /* print entry */
-        ft_putstr_fd(slct->s_av[i], 1);
-        
-        /* reset style */
-        ft_putstr_fd(TEXT_NORMAL, 1);
-        
-        /* insert newline */
-        ft_putstr_fd("\n\r", 1);
-    }
-    
-    ft_select_tuicrsrpos(0, 0);
-    return (0);
-}
-
-
-extern int ft_select_deinit(t_select *slct) {
-    if (!slct) { return (-1); }
-
-    /* print every selected element... */
-    for (size_t i = 0; i < (size_t) slct->s_ac; i++) {
-        if (slct->s_dat[i]) {
-            ft_putendl_fd(slct->s_av[i], 1);
-        }
-    }
-
-    /* unload resources... */
-    free(slct->s_dat), slct->s_dat = 0;
-
-    return (0);
-}
-
-
-/* utils */
+/* input */
 
 extern int ft_select_input(void) {
-    /* input "buffer"... */
-    char c = 0;
-
-    /* number of bytes read... */
-    ssize_t nread = 0;
-    while ((nread = read(STDIN_FILENO, &c, 1)) != 1) {
+    /* read the 'input' from 'STDIN_FILENO' */
+    char input = 0; ssize_t nread = 0;
+    while ((nread = read(STDIN_FILENO, &input, 1)) != 1) {
         if (nread == -1 && errno == EAGAIN) {
             return (-1);
         }
     }
 
-    /* process escape sequences... */
-    if (c == '\x1b') {
-        char seq[3] = { 0 };
+    /* process 'input' */
+    if (input == '\x1b') {
+        /* read the following excape 'sequance' */
+        char sequance[8] = { 0 };
+        if (read(STDIN_FILENO, &sequance[0], 1) != 1) { return ('\x1b'); }
+        if (read(STDIN_FILENO, &sequance[1], 1) != 1) { return ('\x1b'); }
+        if (sequance[0] == '[') {
+            if (sequance[1] > '0' && sequance[1] < '9') {
+                if (read(STDIN_FILENO, &sequance[2], 1) != 1) { return ('\x1b'); }
+                if (sequance[2] == '~') {
+                    switch (sequance[1]) { 
 
-        if (read(STDIN_FILENO, &seq[0], 1) != 1) { return ('\x1b'); }
-        if (read(STDIN_FILENO, &seq[1], 1) != 1) { return ('\x1b'); }
-        if (seq[0] == '[') {
-            /* handle arrows... */
-            switch (seq[1]) {
-                case ('A'): { return (FT_KEY_ARROWUP); }
-                case ('B'): { return (FT_KEY_ARROWDOWN); }
-                case ('C'): { return (FT_KEY_ARROWRIGHT); }
-                case ('D'): { return (FT_KEY_ARROWLEFT); }
+                        /* HOME: "\x1b[1~" */
+                        case ('1'): { return (FT_SELECT_HOME); }
+
+                        /* INSERT: "\x1b[2~" */
+                        case ('2'): { return (FT_SELECT_INSERT); }
+
+                        /* DELETE: "\x1b[3~" */
+                        case ('3'): { return (FT_SELECT_DELETE); }
+
+                        /* END: "\x1b[4~" */
+                        case ('4'): { return (FT_SELECT_END); }
+
+                        /* PAGEUP: "\x1b[5~" */
+                        case ('5'): { return (FT_SELECT_PAGEUP); }
+
+                        /* PAGEDOWN: "\x1b[6~" */
+                        case ('6'): { return (FT_SELECT_PAGEDOWN); }
+
+                    }
+                }
+            }
+
+            else {
+                switch (sequance[1]) {
+
+                    /* UP: "\x1b[A" */
+                    case ('A'): { return (FT_SELECT_ARROW_UP); }
+
+                    /* DOWN: "\x1b[B" */
+                    case ('B'): { return (FT_SELECT_ARROW_DOWN); }
+
+                    /* RIGHT: "\x1b[C" */
+                    case ('C'): { return (FT_SELECT_ARROW_RIGHT); }
+
+                    /* LEFT: "\x1b[D" */
+                    case ('D'): { return (FT_SELECT_ARROW_LEFT); }
+
+                }
             }
         }
 
-        else {
-
+        else if (sequance[0] == 'O') {
+            switch (sequance[1]) { }
         }
-
+       
+        /* return 'escape' */
         return ('\x1b');
     }
 
-    return (c);
+    /* return 'input' */
+    return (input);
 }
 
+/* exec */
 
-extern int ft_select_cursor2index(t_select *slct) {
-    if (!slct) { return (-1); }
+extern int ft_select_exec(const char *cmd, const size_t siz) {
+    /* null-check */
+    if (!cmd) { return (-1); }
+    if (!siz) { return (-1); }
 
-    return (slct->s_cryc * slct->s_crxm + slct->s_crxc);
+    /* run 'cmd' */
+    ssize_t nwrite = 0;
+    if ((nwrite = write(STDOUT_FILENO, cmd, siz)) != (ssize_t) siz) {
+        return (errno);
+    }
+
+    /* success */
+    return (0);
 }
